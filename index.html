@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-title" content="かんたん見積書">
+<title>かんたん見積書</title>
+<style>
+:root{
+  --bg:#EEF2F3; --panel:#FFFFFF; --ink:#1D2B33; --sub:#5A6B72; --line:#D5DEE0;
+  --accent:#2F6F7E; --accent-soft:#E3EFF1;
+  --warn:#B4692A; --warn-soft:#FBF0E4; --danger:#B3423A; --danger-soft:#FBE9E7; --ok:#3C7A4E;
+  --ui:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo",system-ui,sans-serif;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","MS PMincho",serif;
+}
+*{box-sizing:border-box;}
+[hidden]{display:none !important;}
+html,body{margin:0;}
+body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;line-height:1.55;}
+button,input{font:inherit;color:inherit;}
+button{cursor:pointer;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+.btn.primary:hover{filter:brightness(1.08);}
+.btn.wide{width:100%;padding:9px 12px;}
+
+/* 上部バー */
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;}
+.topbar h1{font-family:var(--mincho);font-size:19px;margin:0;letter-spacing:.06em;}
+.topbar .spacer{flex:1;}
+.topbar .actions{display:flex;gap:8px;flex-wrap:wrap;}
+.sample-flag{font-size:12px;background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);border-radius:12px;padding:1px 10px;}
+
+/* 左:項目一覧  右:紙面 */
+.main{display:grid;grid-template-columns:340px 1fr;}
+.palette{padding:16px 16px 40px;display:grid;gap:12px;align-content:start;background:var(--panel);border-right:1px solid var(--line);
+  position:sticky;top:57px;align-self:start;max-height:calc(100vh - 57px);overflow:auto;}
+.palette h2{font-size:14px;margin:0;}
+.hint{font-size:12px;color:var(--sub);margin:0;}
+.cats{display:flex;gap:4px;flex-wrap:wrap;}
+.cat{border:1px solid var(--line);background:#fff;border-radius:16px;padding:3px 12px;font-size:13px;}
+.cat.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.items{display:grid;gap:6px;}
+.item{text-align:left;border:1px solid var(--line);background:#fff;border-radius:6px;padding:8px 10px;display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+.item:hover{border-color:var(--accent);background:var(--accent-soft);}
+.item .pr{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.item.flash{animation:flash .35s ease-out;}
+@keyframes flash{from{background:var(--accent-soft);transform:scale(.97);}to{background:#fff;transform:none;}}
+@media (prefers-reduced-motion:reduce){.item.flash{animation:none;}}
+.empty{border:1px dashed var(--line);border-radius:6px;padding:12px;text-align:center;color:var(--sub);font-size:13px;}
+hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%;}
+
+.desk{padding:16px 18px 48px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px;justify-items:center;align-content:start;overflow-x:auto;}
+.desk-h{width:210mm;max-width:100%;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;}
+.desk-h .hint{font-size:12.5px;flex:1 1 220px;}
+.fit{font-size:12.5px;border-radius:12px;padding:2px 10px;}
+.fit.ok{background:#E5F1E8;color:var(--ok);}
+.fit.small{background:var(--warn-soft);color:var(--warn);}
+.fit.over{background:var(--danger-soft);color:var(--danger);font-weight:600;}
+@media (max-width:900px){.main{grid-template-columns:1fr;}.palette{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--line);}.desk{justify-items:start;}}
+
+/* ---------- 紙面(A4)= 入力欄 ---------- */
+.page{width:210mm;height:296.5mm;background:#fff;color:#1A1A1A;box-shadow:0 2px 10px rgba(20,40,50,.18);overflow:hidden;flex:none;}
+.sheet{--fs:1;height:100%;padding:20mm 20mm 16mm;display:flex;flex-direction:column;overflow:hidden;font-size:calc(11pt * var(--fs));line-height:1.5;}
+.sheet input{border:0;background:transparent;width:100%;padding:1mm 1.5mm;border-radius:3px;font-size:inherit;}
+.sheet input:hover{background:#F2F7F8;}
+.sheet input:focus{background:#E8F2F4;outline:1.5px solid var(--accent);outline-offset:0;}
+.sheet input::placeholder{color:#AAB4B7;}
+.s-title{font-family:var(--mincho);font-size:calc(22pt * var(--fs));text-align:center;letter-spacing:.6em;padding-left:.6em;margin-bottom:calc(9mm * var(--fs));font-weight:600;}
+.s-head{display:flex;justify-content:space-between;align-items:flex-end;gap:10mm;margin-bottom:calc(7mm * var(--fs));}
+.s-name{display:flex;align-items:baseline;gap:2mm;width:95mm;border-bottom:1px solid #1A1A1A;font-family:var(--mincho);font-size:calc(15pt * var(--fs));}
+.s-name input{font-family:var(--mincho);}
+.s-name span{font-size:calc(12pt * var(--fs));padding-right:2mm;}
+.s-date{width:45mm;}
+.s-date input{text-align:right;font-variant-numeric:tabular-nums;font-size:calc(10pt * var(--fs));}
+.s-big{display:flex;justify-content:space-between;align-items:baseline;border:1.5px solid #1A1A1A;padding:calc(3mm * var(--fs)) 5mm;margin-bottom:calc(6mm * var(--fs));}
+.s-big span{font-size:calc(11.5pt * var(--fs));}
+.s-big b{font-family:var(--mincho);font-size:calc(20pt * var(--fs));font-variant-numeric:tabular-nums;}
+.s-table{width:100%;border-collapse:collapse;}
+.s-table th{background:#EEF2F3;font-weight:normal;font-size:calc(9pt * var(--fs));color:#333;border:0.6pt solid #9AA6AA;padding:calc(1.2mm * var(--fs)) 2mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.s-table td{border:0.6pt solid #9AA6AA;padding:calc(.6mm * var(--fs)) 1mm;vertical-align:middle;}
+.s-table .c-price{width:30mm;}
+.s-table .c-price input{text-align:right;font-variant-numeric:tabular-nums;}
+.s-table .c-qty{width:24mm;text-align:center;}
+.s-table .c-amt{width:30mm;}
+.s-table td.c-amt{position:relative;text-align:right;font-variant-numeric:tabular-nums;padding-right:2.5mm;}
+.qty{display:flex;align-items:center;justify-content:center;gap:1.5mm;font-variant-numeric:tabular-nums;}
+.qty span{min-width:5mm;text-align:center;}
+.qb{width:20px;height:20px;padding:0;border:1px solid var(--line);background:#fff;border-radius:50%;font-size:13px;line-height:1;color:var(--sub);display:grid;place-items:center;}
+.qb:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+.qb:disabled{opacity:.35;cursor:default;}
+.s-table tfoot td{font-weight:700;background:#F6F8F8;padding:calc(1.6mm * var(--fs)) 2.5mm;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.s-table tfoot .num{text-align:right;font-variant-numeric:tabular-nums;}
+.del{position:absolute;right:-9mm;top:50%;transform:translateY(-50%);border:1px solid var(--line);background:#fff;border-radius:4px;width:24px;height:24px;font-size:12px;color:var(--sub);padding:0;}
+.del:hover{border-color:var(--danger);color:var(--danger);}
+.s-table td.c-name{position:relative;}
+.grip{position:absolute;left:-8.5mm;top:50%;transform:translateY(-50%);width:24px;height:28px;padding:0;border:0;border-radius:4px;background:transparent;color:#9AA6AA;font-size:17px;line-height:1;cursor:grab;touch-action:none;display:grid;place-items:center;}
+.grip:hover,.grip:focus-visible{color:var(--accent);background:var(--accent-soft);}
+tr.dragging td{background:#E8F2F4;}
+tr.dragging td:first-child{box-shadow:inset 3px 0 0 var(--accent);}
+body.is-dragging,body.is-dragging *{cursor:grabbing !important;user-select:none;}
+.addrow{margin-top:2mm;align-self:flex-start;border:1px dashed var(--line);background:transparent;border-radius:4px;color:var(--sub);font-size:12px;padding:3px 10px;}
+.addrow:hover{border-color:var(--accent);color:var(--accent);}
+.s-empty{color:#9AA6AA;text-align:center;padding:4mm 0 !important;font-size:10pt;}
+.s-note{margin:calc(4mm * var(--fs)) 0 0;font-size:calc(9.5pt * var(--fs));}
+
+/* ---------- スマホ用(幅700px以下) ---------- */
+.mobile,.m-bar,.backdrop,.phone-only{display:none;}
+@media (max-width:700px){
+  body{font-size:15px;}
+  .topbar{padding:10px 14px;gap:8px;}
+  .topbar h1{font-size:18px;}
+  #bPrint,.desktop-only{display:none !important;}
+  .phone-only{display:block;}
+  .main{display:block;padding-bottom:calc(76px + env(safe-area-inset-bottom, 0px));}
+
+  /* 入力画面 */
+  .mobile{display:grid;gap:12px;padding:14px 14px 20px;}
+  body.m-preview .mobile{display:none;}
+  .m-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:10px;}
+  .m-f{display:grid;gap:4px;font-size:12.5px;color:var(--sub);}
+  .m-f input,.mrow input{font-size:16px;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;width:100%;}
+  .m-total{display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:var(--ink);color:#fff;border-radius:10px;padding:12px 16px;}
+  .m-total b{font-size:24px;font-variant-numeric:tabular-nums;font-family:var(--mincho);}
+  .m-fit{justify-self:start;}
+  .m-list{display:grid;gap:10px;}
+  .mrow{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:10px;}
+  .mrow.dragging{border-color:var(--accent);box-shadow:0 4px 14px rgba(20,60,70,.18);background:#F4F9FA;}
+  .mrow-top{display:flex;gap:8px;align-items:center;}
+  .mrow-bot{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:end;}
+  .mrow-bot .m-f input{text-align:right;font-variant-numeric:tabular-nums;}
+  .mrow-amt{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed var(--line);padding-top:8px;font-size:13px;color:var(--sub);}
+  .mrow-amt b{font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .mrow .grip{position:static;transform:none;width:36px;height:44px;flex:none;font-size:22px;}
+  .mrow .del{position:static;transform:none;width:40px;height:40px;flex:none;font-size:15px;border-radius:8px;}
+  .mrow .qty{gap:10px;}
+  .mrow .qty span{min-width:24px;font-size:18px;font-weight:600;}
+  .mrow .qb{width:44px;height:44px;font-size:22px;}
+  .m-add{display:grid;gap:8px;}
+  .btn.big{padding:13px 14px;font-size:16px;border-radius:10px;}
+  .m-empty{border:1.5px dashed var(--line);border-radius:10px;padding:20px 14px;text-align:center;color:var(--sub);}
+
+  /* プレビュー:入力中は画面の外で組み立てておき(A4判定のため)、プレビュー時に表示 */
+  .desk{position:absolute;left:-10000px;top:0;visibility:hidden;padding:12px 12px 20px;}
+  body.m-preview .desk{position:static;visibility:visible;display:grid;justify-items:center;}
+  .desk-h .hint{display:none;}
+  .page{pointer-events:none;}
+  .page .no-print{visibility:hidden;}
+
+  /* 項目一覧は下から出るシート */
+  .palette{display:none;position:fixed;left:0;right:0;bottom:0;top:auto;z-index:20;max-height:82vh;border-right:0;border-radius:16px 16px 0 0;
+    box-shadow:0 -6px 30px rgba(0,0,0,.2);padding:14px 14px calc(20px + env(safe-area-inset-bottom, 0px));}
+  body.picker-open .palette{display:grid;}
+  body.picker-open .backdrop{display:block;position:fixed;inset:0;background:rgba(20,35,42,.4);z-index:15;}
+  .palette-h{display:flex;justify-content:space-between;align-items:center;}
+  .palette-h h2{font-size:16px;}
+  .cat{font-size:14px;padding:6px 14px;}
+  .item{padding:12px 12px;font-size:15px;}
+  .item .pr{font-size:14px;}
+
+  /* 下部バー */
+  .m-bar{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--panel);border-top:1px solid var(--line);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px));}
+  .m-bar button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:11px 6px;font-size:15px;}
+  .m-bar button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600;}
+  .m-bar button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .toast{bottom:calc(86px + env(safe-area-inset-bottom, 0px));}
+}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:30;}
+
+/* ---------- 印刷 ---------- */
+@page{size:A4 portrait;margin:0;}
+@media print{
+  html,body{background:#fff;}
+  .topbar,.palette,.desk-h,.toast,.no-print,.mobile,.m-bar,.backdrop{display:none !important;}
+  .main{display:block;padding:0 !important;}
+  .desk{padding:0 !important;display:block !important;overflow:visible;position:static !important;visibility:visible !important;}
+  .page{pointer-events:auto;}
+  .page{box-shadow:none;zoom:1 !important;}
+  .sheet input::placeholder{color:transparent;}
+  .sheet input:hover,.sheet input:focus{background:transparent;outline:0;}
+  tr.blank{display:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>かんたん見積書</h1>
+  <span class="sample-flag" id="sampleFlag" hidden>一覧の価格はダミーです</span>
+  <span class="spacer"></span>
+  <div class="actions">
+    <button class="btn" id="bClear">新しく作る</button>
+    <button class="btn primary" id="bPrint">印刷・PDF保存</button>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="palette" id="palette">
+    <div class="palette-h"><h2>項目を選ぶ</h2><button class="btn phone-only" id="pClose">閉じる</button></div>
+    <p class="hint phone-only">タップすると見積書に追加されます。同じ項目をもう一度押すと数量が増えます。</p>
+    <p class="hint desktop-only">クリックすると右の見積書に1行追加されます。同じ項目をもう一度押すと数量が増えます。追加した行の内容・単価・数量は、見積書の上でそのまま変えられます。並び替えは、行の左端の「≡」を押したまま上下に動かします。</p>
+    <div class="cats" id="cats"></div>
+    <div class="items" id="items"></div>
+    <hr>
+    <button class="btn wide" id="bAdd">＋ 空の行を追加して手入力</button>
+    <p class="hint desktop-only">この一覧は「見積書作成ツール」と共通です。項目や金額の登録・変更は、そちらの「価格表・設定」から行います。</p>
+  </aside>
+
+  <section class="mobile" id="mobile">
+    <div class="m-card">
+      <label class="m-f">お名前(空欄なら手書き用の線になります)<input type="text" id="mName" autocomplete="off" placeholder="例:山田 花子"></label>
+      <label class="m-f">日付<input type="text" id="mDate" autocomplete="off"></label>
+    </div>
+    <div class="m-total"><span>お見積り金額(税込)</span><b id="mTotal">0円</b></div>
+    <span class="fit ok m-fit" id="mFit" hidden></span>
+    <div class="m-list" id="mlist"></div>
+    <div class="m-add">
+      <button class="btn primary big" id="mPick">＋ 一覧から項目を選ぶ</button>
+      <button class="btn big" id="mAddRow">＋ 手入力の行を追加</button>
+    </div>
+  </section>
+
+  <section class="desk">
+    <div class="desk-h">
+      <span class="hint">白い紙の上をクリックすると、その場で入力・修正できます。左端の「≡」をつかむと並び替えできます</span>
+      <span class="fit ok" id="fitState">A4に収まっています</span>
+    </div>
+    <div class="page" id="page">
+      <div class="sheet" id="sheet">
+        <div class="s-title">御見積書</div>
+        <div class="s-head">
+          <div class="s-name"><input type="text" id="fName" placeholder="お名前(空欄なら手書き用の線)" autocomplete="off" aria-label="患者名"><span>様</span></div>
+          <div class="s-date"><input type="text" id="fDate" autocomplete="off" aria-label="日付"></div>
+        </div>
+        <div class="s-big"><span>お見積り金額(税込)</span><b id="bigTotal">0円</b></div>
+        <table class="s-table">
+          <thead><tr><th>内容</th><th class="c-price">単価(円)</th><th class="c-qty">数量</th><th class="c-amt">金額(円)</th></tr></thead>
+          <tbody id="rows"></tbody>
+          <tfoot><tr><td colspan="3">合計(税込)</td><td class="num" id="total">0</td></tr></tfoot>
+        </table>
+        <button class="addrow no-print" id="bAdd2">＋ 行を追加</button>
+        <p class="s-note">金額はすべて税込です。</p>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="backdrop" id="backdrop"></div>
+<nav class="m-bar" aria-label="画面の切り替え">
+  <button id="mTabInput" class="on">入力</button>
+  <button id="mTabPreview">プレビュー</button>
+  <button id="mPrint" class="primary">印刷・PDF</button>
+</nav>
+
+<script>
+'use strict';
+/* 価格表:パソコンでは「見積書作成ツール.html」が保存した一覧(同じ保存場所)を優先して使う。
+   それが無い端末(iPhone・Web版など)では、下の BUILTIN(組み込みの一覧)を使う。
+   ※ 価格を変えたら BUILTIN も書き換えること */
+const DATA_KEY = 'mitsumori.data.v1';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yen = n => (Math.round(Number(n)||0)).toLocaleString('ja-JP');
+const toNum = s => { const t = String(s ?? '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[−ー－]/g,'-').replace(/[^\d-]/g,''); const n = parseInt(t, 10); return isNaN(n) ? 0 : n; };
+const $ = id => document.getElementById(id);
+
+function builtinData(){
+  const c = (name, items) => ({ id:uid(), name, items: items.map(([n,p]) => ({ id:uid(), name:n, price:p })) });
+  return {
+    version:1, isSample:true,
+    categories:[
+      c('詰め物・被せ物', [['セラミックインレー',88000],['セラミッククラウン',110000],['ジルコニアクラウン',132000],['ファイバーコア',11000]]),
+      c('インプラント', [['CT検査・診断',22000],['インプラント埋入手術(1本)',330000],['上部構造(1本)',110000],['骨造成',55000]]),
+      c('矯正', [['精密検査・診断',33000],['マウスピース矯正(全体)',880000],['部分矯正',330000],['調整料(1回)',5500]]),
+      c('入れ歯', [['金属床義歯',330000],['ノンクラスプデンチャー',165000]]),
+      c('ホワイトニング', [['オフィスホワイトニング',22000],['ホームホワイトニング',33000]]),
+    ],
+    settings:{ clinicName:'〇〇歯科医院', address:'〒000-0000 〇〇県〇〇市〇〇町1-2-3', tel:'00-0000-0000', director:'院長 〇〇 〇〇', validMonths:6,
+      greeting:'このたびの治療につきまして、下記のとおりお見積り申し上げます。',
+      notes:'治療の経過やお口の状態の変化により、治療内容・金額が変わる場合があります。その際は改めてご説明いたします。\n有効期限を過ぎた場合は、改めてお見積りいたします。', payment:'' }
+  };
+}
+function loadData(){
+  try{
+    const v = JSON.parse(localStorage.getItem(DATA_KEY) || 'null');
+    if(v && Array.isArray(v.categories)) return v;
+  }catch(e){}
+  return builtinData();
+}
+
+let data = loadData();
+let catId = data.categories[0]?.id;
+let rows = [];   // { name, price, qty }  ※保存しない(閉じると消える)
+
+function todayJP(){ const d = new Date(); return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; }
+const phone = window.matchMedia('(max-width:700px)');
+
+/* ----- 名前・日付(紙面とスマホ入力欄を同期) ----- */
+function syncPair(a, b){
+  $(a).addEventListener('input', () => { $(b).value = $(a).value; });
+  $(b).addEventListener('input', () => { $(a).value = $(b).value; });
+}
+syncPair('fName','mName'); syncPair('fDate','mDate');
+function setNameDate(name, date){ $('fName').value = $('mName').value = name; $('fDate').value = $('mDate').value = date; }
+setNameDate('', todayJP());
+
+/* ----- 一覧 ----- */
+function renderCats(){
+  if(!data.categories.find(c => c.id === catId)) catId = data.categories[0]?.id;
+  $('cats').innerHTML = data.categories.map(c => `<button class="cat ${c.id===catId?'on':''}" data-cat="${c.id}">${esc(c.name)}</button>`).join('');
+  const c = data.categories.find(c => c.id === catId);
+  $('items').innerHTML = c && c.items.length
+    ? c.items.map(it => `<button class="item" data-item="${it.id}"><span>${esc(it.name)}</span><span class="pr">${yen(it.price)}円</span></button>`).join('')
+    : `<div class="empty">項目がありません</div>`;
+  $('sampleFlag').hidden = !data.isSample;
+}
+$('cats').addEventListener('click', e => { const t = e.target.closest('[data-cat]'); if(t){ catId = t.dataset.cat; renderCats(); } });
+$('items').addEventListener('click', e => {
+  const t = e.target.closest('[data-item]'); if(!t) return;
+  const it = data.categories.find(c => c.id === catId)?.items.find(x => x.id === t.dataset.item); if(!it) return;
+  // 同じ項目(同じ単価)がすでにあれば数量を1つ増やす
+  const ex = rows.find(r => r.name === it.name && r.price === (Number(it.price)||0));
+  if(ex) ex.qty += 1; else rows.push({ name:it.name, price:Number(it.price)||0, qty:1 });
+  renderRows(); t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
+  if(phone.matches) toast(`「${it.name}」を追加しました` + (ex ? `(数量 ${ex.qty})` : ''));
+});
+// 別タブで価格表が変わったら反映
+window.addEventListener('storage', e => { if(e.key === DATA_KEY){ data = loadData(); renderCats(); } });
+window.addEventListener('focus', () => { data = loadData(); renderCats(); });
+
+/* ----- 明細:紙面(パソコン)とリスト(スマホ)の2つの表示 ----- */
+const lineAmt = r => (Number(r.price)||0) * (Number(r.qty)||0);
+const isBlank = r => !r.name && !r.price;
+const views = [$('rows'), $('mlist')];
+const otherView = el => views.find(v => v !== el);
+const priceVal = r => r.price ? yen(r.price) : '';
+const qtyHtml = r => `<div class="qty">
+        <button class="qb no-print" data-q="-1" title="1つ減らす" aria-label="数量を1つ減らす" ${r.qty <= 1 ? 'disabled' : ''}>−</button>
+        <span>${r.qty}</span>
+        <button class="qb no-print" data-q="1" title="1つ増やす" aria-label="数量を1つ増やす">＋</button>
+      </div>`;
+const gripHtml = `<button class="grip no-print" data-grip title="押したまま上下に動かすと並び替えできます" aria-label="並び替え(上下の矢印キーでも移動できます)">≡</button>`;
+const delHtml = `<button class="del no-print" data-del title="この行を削除" aria-label="この行を削除">✕</button>`;
+
+function renderSheetRows(){
+  $('rows').innerHTML = rows.length ? rows.map((r,i) => `
+    <tr data-i="${i}" class="${isBlank(r) ? 'blank' : ''}">
+      <td class="c-name">${gripHtml}<input type="text" data-f="name" value="${esc(r.name)}" placeholder="内容を入力" aria-label="内容"></td>
+      <td class="c-price"><input type="text" inputmode="numeric" data-f="price" value="${priceVal(r)}" placeholder="0" aria-label="単価"></td>
+      <td class="c-qty">${qtyHtml(r)}</td>
+      <td class="c-amt"><span data-amt>${yen(lineAmt(r))}</span>${delHtml}</td>
+    </tr>`).join('')
+    : `<tr class="no-print"><td colspan="4" class="s-empty">左の一覧から項目をクリックするか、「＋ 行を追加」で入力してください</td></tr>`;
+}
+function renderMobileRows(){
+  $('mlist').innerHTML = rows.length ? rows.map((r,i) => `
+    <div class="mrow" data-i="${i}">
+      <div class="mrow-top">${gripHtml}<input type="text" data-f="name" value="${esc(r.name)}" placeholder="内容を入力" aria-label="内容">${delHtml}</div>
+      <div class="mrow-bot">
+        <label class="m-f">単価(円)<input type="text" inputmode="numeric" data-f="price" value="${priceVal(r)}" placeholder="0"></label>
+        <div><div class="m-f" style="margin-bottom:4px">数量</div>${qtyHtml(r)}</div>
+        <div class="mrow-amt"><span>金額</span><b><span data-amt>${yen(lineAmt(r))}</span>円</b></div>
+      </div>
+    </div>`).join('')
+    : `<div class="m-empty">「＋ 一覧から項目を選ぶ」か「＋ 手入力の行を追加」で、見積もりの項目を入れてください</div>`;
+}
+function renderRows(focusIndex, focusView){
+  renderSheetRows(); renderMobileRows(); renderTotal();
+  if(focusIndex != null) (focusView || (phone.matches ? $('mlist') : $('rows'))).querySelector(`[data-i="${focusIndex}"] [data-f="name"]`)?.focus();
+}
+function renderTotal(){
+  const sum = rows.reduce((s,r) => s + lineAmt(r), 0);
+  $('total').textContent = yen(sum);
+  $('bigTotal').textContent = yen(sum) + '円';
+  $('mTotal').textContent = yen(sum) + '円';
+  fitToPage();
+}
+
+/* ----- 明細の操作(どちらの表示にも同じ仕組みを付ける) ----- */
+let drag = null;
+function bindList(el){
+  el.addEventListener('input', e => {
+    const f = e.target.dataset.f, row = e.target.closest('[data-i]'); if(!f || !row) return;
+    const r = rows[Number(row.dataset.i)];
+    r[f] = f === 'price' ? toNum(e.target.value) : e.target.value;
+    row.querySelector('[data-amt]').textContent = yen(lineAmt(r));
+    row.classList.toggle('blank', isBlank(r));
+    // もう片方の表示を更新(入力中の欄はそのまま)
+    if(el === $('rows')) renderMobileRows(); else renderSheetRows();
+    renderTotal();
+  });
+  // 単価は入力を終えたら「88,000」の形に整える
+  el.addEventListener('focusout', e => { if(e.target.dataset.f === 'price'){ const r = rows[Number(e.target.closest('[data-i]').dataset.i)]; e.target.value = priceVal(r); } });
+  el.addEventListener('keydown', e => {
+    // ≡にカーソルを合わせて ↑ ↓ で並び替え
+    const g = e.target.closest('[data-grip]');
+    if(g && (e.key === 'ArrowUp' || e.key === 'ArrowDown')){
+      e.preventDefault();
+      const i = Number(g.closest('[data-i]').dataset.i), j = e.key === 'ArrowUp' ? i - 1 : i + 1;
+      if(j < 0 || j >= rows.length) return;
+      [rows[i], rows[j]] = [rows[j], rows[i]];
+      renderRows(); el.querySelector(`[data-i="${j}"] [data-grip]`)?.focus();
+      return;
+    }
+    // Enterで次の欄へ
+    if(e.key !== 'Enter' || e.isComposing || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    const inputs = [...el.querySelectorAll('input')]; const k = inputs.indexOf(e.target);
+    if(k === inputs.length - 1){ addRow(); } else inputs[k+1]?.focus();
+  });
+  el.addEventListener('click', e => {
+    const row = e.target.closest('[data-i]'); if(!row) return;
+    const i = Number(row.dataset.i);
+    const q = e.target.closest('[data-q]');
+    if(q){ rows[i].qty = Math.max(1, rows[i].qty + Number(q.dataset.q)); renderRows(); return; }
+    if(e.target.closest('[data-del]')){ rows.splice(i, 1); renderRows(); }
+  });
+  // 並び替え(≡を押したまま上下に動かす)
+  el.addEventListener('pointerdown', e => {
+    const g = e.target.closest('[data-grip]'); if(!g || e.button > 0) return;
+    e.preventDefault(); g.focus();
+    drag = { el, item: g.closest('[data-i]') };
+    drag.item.classList.add('dragging'); document.body.classList.add('is-dragging');
+  });
+}
+views.forEach(bindList);
+window.addEventListener('pointermove', e => {
+  if(!drag) return;
+  e.preventDefault();
+  const box = drag.el;
+  const before = [...box.children].find(r => r !== drag.item && e.clientY < r.getBoundingClientRect().top + r.getBoundingClientRect().height / 2) || null;
+  if(before !== drag.item.nextElementSibling && !(before === null && drag.item === box.lastElementChild)) box.insertBefore(drag.item, before);
+}, { passive:false });
+function endDrag(){
+  if(!drag) return;
+  const box = drag.el;
+  const order = [...box.children].map(r => Number(r.dataset.i));
+  const moved = order.indexOf(Number(drag.item.dataset.i));
+  rows = order.map(i => rows[i]);
+  document.body.classList.remove('is-dragging'); drag = null;
+  renderRows(); box.children[moved]?.querySelector('[data-grip]')?.focus();
+}
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+
+function addRow(){
+  rows.push({ name:'', price:0, qty:1 });
+  if(phone.matches){ closePicker(); setMode('input'); }
+  renderRows(rows.length - 1);
+}
+$('bAdd').addEventListener('click', addRow);
+$('bAdd2').addEventListener('click', addRow);
+$('mAddRow').addEventListener('click', addRow);
+
+/* ----- スマホ:項目一覧シートと、入力/プレビューの切り替え ----- */
+function openPicker(){ document.body.classList.add('picker-open'); }
+function closePicker(){ document.body.classList.remove('picker-open'); }
+$('mPick').addEventListener('click', openPicker);
+$('pClose').addEventListener('click', closePicker);
+$('backdrop').addEventListener('click', closePicker);
+function setMode(m){
+  document.body.classList.toggle('m-preview', m === 'preview');
+  $('mTabInput').classList.toggle('on', m !== 'preview');
+  $('mTabPreview').classList.toggle('on', m === 'preview');
+  if(m === 'preview'){ zoomToFit(); window.scrollTo(0, 0); }
+}
+$('mTabInput').addEventListener('click', () => setMode('input'));
+$('mTabPreview').addEventListener('click', () => setMode('preview'));
+$('mPrint').addEventListener('click', () => $('bPrint').click());
+
+/* ----- A4に収める ----- */
+function fitToPage(){
+  const sh = $('sheet'); let fs = 1;
+  sh.style.setProperty('--fs', fs);
+  while(sh.scrollHeight > sh.clientHeight + 1 && fs > 0.7){ fs = Math.round((fs - 0.03)*100)/100; sh.style.setProperty('--fs', fs); }
+  const st = $('fitState'), ms = $('mFit');
+  if(sh.scrollHeight > sh.clientHeight + 1){ st.className = 'fit over'; st.textContent = 'A4に収まりません。行を減らしてください'; }
+  else if(fs < 1){ st.className = 'fit small'; st.textContent = `文字を少し小さくして収めています(${Math.round(fs*100)}%)`; }
+  else { st.className = 'fit ok'; st.textContent = 'A4に収まっています'; }
+  ms.className = st.className + ' m-fit'; ms.textContent = st.textContent; ms.hidden = fs >= 1 && !st.classList.contains('over');
+}
+function zoomToFit(){
+  const pg = $('page'); pg.style.zoom = 1;
+  const avail = $('page').parentElement.clientWidth - (phone.matches ? 24 : 36);
+  if(avail <= 0) return;
+  const k = Math.min(1, avail / pg.offsetWidth);
+  pg.style.zoom = k < 1 ? k : '';
+}
+window.addEventListener('resize', zoomToFit);
+
+/* ----- 印刷・新規 ----- */
+$('bPrint').addEventListener('click', () => {
+  if(!rows.some(r => !isBlank(r))){ toast('項目が1つもありません'); return; }
+  if($('fitState').classList.contains('over') && !confirm('A4 1枚に収まっていません。このまま印刷すると下の方が切れます。印刷しますか?')) return;
+  const old = document.title, name = $('fName').value.trim();
+  document.title = `見積書_${name || '名前なし'}_${$('fDate').value.trim()}`;
+  window.addEventListener('afterprint', () => { document.title = old; }, { once:true });
+  window.print();
+});
+$('bClear').addEventListener('click', () => {
+  if((rows.length || $('fName').value) && !confirm('入力した内容を消して、新しい見積書を作りますか?')) return;
+  rows = []; setNameDate('', todayJP()); renderRows(); setMode('input'); (phone.matches ? $('mName') : $('fName')).focus();
+});
+window.addEventListener('beforeunload', e => { if(rows.length){ e.preventDefault(); e.returnValue = ''; } });
+
+let toastTimer;
+function toast(msg){
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2600);
+}
+
+renderCats(); renderRows(); zoomToFit();
+document.fonts?.ready.then(() => { fitToPage(); zoomToFit(); });
+</script>
+</body>
+</html>
